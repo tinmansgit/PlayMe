@@ -12,8 +12,13 @@ from logger_playme import log_error, log_debug
 class MusicPlayer:
     def __init__(self, root):
         self.root = root
+        try:
+            icon = tk.PhotoImage(file="play-me_icon.png")
+            self.root.iconphoto(False, icon)
+        except Exception as e:
+            log_error(f"Failed to load icon: {e}")
         log_debug("Starting PlayMe")
-        self.root.title("PlayMe v1.2")
+        self.root.title("PlayMe")
         self.root.geometry("610x380")
         self.root.resizable(0, 0)
         mixer.init()
