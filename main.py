@@ -1,4 +1,4 @@
-# PlayMe v1.2 20250414.07:46
+# PlayMe v1.3 20250419.08:26
 import os
 import sys
 import tkinter as tk
@@ -13,7 +13,7 @@ class MusicPlayer:
     def __init__(self, root):
         self.root = root
         try:
-            icon = tk.PhotoImage(file="play-me_icon.png")
+            icon = tk.PhotoImage(file="/home/coder/bin/Python/PlayMe/play-me_icon.png")
             self.root.iconphoto(False, icon)
         except Exception as e:
             log_error(f"Failed to load icon: {e}")
@@ -22,6 +22,7 @@ class MusicPlayer:
         self.root.geometry("610x380")
         self.root.resizable(0, 0)
         mixer.init()
+        mixer.music.set_volume(0.7)
         log_debug("Mixer up")
         self.auto_next = False
         self.playlist_data = []
@@ -63,6 +64,13 @@ class MusicPlayer:
         tk.Button(self.control_frame, text="Open", width=8, font=("Arial", 10), fg="white", bg="black", command=self.open_files).grid(row=1, column=5, padx=5, pady=5)
         tk.Button(self.control_frame, text="Save PL", width=8, font=("Arial", 10), fg="white", bg="black", command=self.save_playlist).grid(row=1, column=0, padx=5, pady=5)
         tk.Button(self.control_frame, text="Load PL", width=8, font=("Arial", 10), fg="white", bg="black", command=self.load_playlist).grid(row=1, column=1, padx=5, pady=5)
+
+        volume_label = tk.Label(self.control_frame, text="Volume", font=("Arial", 10), fg="white", bg="black")
+        volume_label.grid(row=1, column=2, padx=5, pady=5)
+        self.volume_slider = tk.Scale(self.control_frame, from_=0, to=100, orient=tk.HORIZONTAL,
+                                      command=self.volume_control, bg="black", fg="white", troughcolor="gray", highlightthickness=0)
+        self.volume_slider.set(70)
+        self.volume_slider.grid(row=1, column=3, padx=5, pady=5)
         log_debug("Widgets created")
 
     def bind_shortcuts(self):
@@ -73,6 +81,11 @@ class MusicPlayer:
         self.root.bind("<g>", lambda e: self.pause_song())
         self.root.bind("<h>", lambda e: self.resume_song())
         log_debug("Shortcuts bound")
+
+    def volume_control(self, volume):
+        vol = float(volume) / 100.0
+        mixer.music.set_volume(vol)
+        log_debug(f"Volume set to {vol:.2f}")
 
     def update_metadata(self, file_path):
         log_debug(f"Updating metadata for file: {file_path}")
