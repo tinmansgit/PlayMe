@@ -67,8 +67,7 @@ class MusicPlayer:
 
         volume_label = tk.Label(self.control_frame, text="Volume", font=("Arial", 10), fg="white", bg="black")
         volume_label.grid(row=1, column=2, padx=5, pady=5)
-        self.volume_slider = tk.Scale(self.control_frame, from_=0, to=100, orient=tk.HORIZONTAL,
-                                      command=self.volume_control, bg="black", fg="white", troughcolor="gray", highlightthickness=0)
+        self.volume_slider = tk.Scale(self.control_frame, from_=0, to=100, orient=tk.HORIZONTAL,command=self.volume_control, bg="black", fg="white", troughcolor="gray", highlightthickness=0)
         self.volume_slider.set(70)
         self.volume_slider.grid(row=1, column=3, padx=5, pady=5)
         log_debug("Widgets created")
@@ -301,7 +300,7 @@ class MusicPlayer:
         self.root.after(1000, self.periodic_update)
 
 def main():
-    log_debug("Starting main function")
+    log_debug("Starting PlayMe")
     try:
         os.chdir(r"/media/coder/AV/Music")
         log_debug("Changed directory to /media/coder/AV/Music")
