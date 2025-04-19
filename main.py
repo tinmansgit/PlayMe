@@ -13,7 +13,7 @@ class MusicPlayer:
     def __init__(self, root):
         self.root = root
         try:
-            icon = tk.PhotoImage(file="/home/coder/bin/Python/PlayMe/play-me_icon.png")
+            icon = tk.PhotoImage(file="/path/to/your/bin/Python/PlayMe/play-me_icon.png")
             self.root.iconphoto(False, icon)
         except Exception as e:
             log_error(f"Failed to load icon: {e}")
@@ -302,8 +302,8 @@ class MusicPlayer:
 def main():
     log_debug("Starting PlayMe")
     try:
-        os.chdir(r"/media/coder/AV/Music")
-        log_debug("Changed directory to /media/coder/AV/Music")
+        os.chdir(r"/path/to/your/Music")
+        log_debug("Changed directory to /path/to/your/Music")
     except Exception as e:
         log_error(f"Could not change directory: {e}")
         log_debug(f"Could not change directory: {e}")
