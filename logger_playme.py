@@ -1,7 +1,7 @@
 import logging
 
-error_log_file = '/home/coder/bin/Python/PlayMe/log_playme_error.log'
-debug_log_file = '/home/coder/bin/Python/PlayMe/log_playme_debug.log'
+error_log_file = '/bin/Python/PlayMe/log_playme_error.log'
+debug_log_file = '/bin/Python/PlayMe/log_playme_debug.log'
 
 logger = logging.getLogger('app_logger')
 logger.setLevel(logging.DEBUG)

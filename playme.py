@@ -13,7 +13,7 @@ class MusicPlayer:
     def __init__(self, root):
         self.root = root
         try:
-            icon = tk.PhotoImage(file="/home/coder/bin/Python/PlayMe/play-me_icon.png")
+            icon = tk.PhotoImage(file="/bin/Python/PlayMe/play-me_icon.png")
             self.root.iconphoto(False, icon)
         except Exception as e:
             log_error(f"Failed to load icon: {e}")
