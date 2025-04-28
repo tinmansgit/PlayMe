@@ -22,7 +22,7 @@ class MusicPlayer:
         self.root.geometry("610x380")
         self.root.resizable(0, 0)
         mixer.init()
-        mixer.music.set_volume(0.7)
+        mixer.music.set_volume(0.8)
         log_debug("Mixer up")
         self.auto_next = False
         self.playlist_data = []
