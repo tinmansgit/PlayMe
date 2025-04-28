@@ -1,4 +1,4 @@
-# PlayMe v1.3 20250419.08:26
+# PlayMe v1.4 20250428.08:40
 import os
 import sys
 import tkinter as tk
@@ -13,7 +13,7 @@ class MusicPlayer:
     def __init__(self, root):
         self.root = root
         try:
-            icon = tk.PhotoImage(file="/bin/Python/PlayMe/play-me_icon.png")
+            icon = tk.PhotoImage(file="~/bin/Python/PlayMe/play-me_icon.png")
             self.root.iconphoto(False, icon)
         except Exception as e:
             log_error(f"Failed to load icon: {e}")
@@ -54,31 +54,30 @@ class MusicPlayer:
         self.progress_bar.place(x=-1, y=240, width=612, height=20)
         self.control_frame = tk.LabelFrame(self.root, text="Controls", font=("Arial", 12, "bold"), bg="black", fg="white", padx=18, pady=5)
         self.control_frame.place(x=0, y=260, width=610, height=120)
-        tk.Button(self.control_frame, text="Previous", width=8, font=("Arial", 10), fg="white", bg="black", command=self.play_previous_song).grid(row=0, column=0, padx=7, pady=5)
-        tk.Button(self.control_frame, text="Play", width=8, font=("Arial", 10), fg="white", bg="black", command=self.play_song).grid(row=0, column=1, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Next", width=8, font=("Arial", 10), fg="white", bg="black", command=self.play_next_song).grid(row=0, column=2, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Pause", width=8, font=("Arial", 10), fg="white", bg="black", command=self.pause_song).grid(row=0, column=3, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Resume", width=8, font=("Arial", 10), fg="white", bg="black", command=self.resume_song).grid(row=0, column=4, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Stop", width=8, font=("Arial", 10), fg="white", bg="black", command=self.stop_song).grid(row=0, column=5, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Clear", width=8, font=("Arial", 10), fg="white", bg="black", command=self.clear_playlist).grid(row=1, column=4, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Open", width=8, font=("Arial", 10), fg="white", bg="black", command=self.open_files).grid(row=1, column=5, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Save PL", width=8, font=("Arial", 10), fg="white", bg="black", command=self.save_playlist).grid(row=1, column=0, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Load PL", width=8, font=("Arial", 10), fg="white", bg="black", command=self.load_playlist).grid(row=1, column=1, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Previous", width=8, font=("Arial", 9), fg="white", bg="black", command=self.play_previous_song).grid(row=0, column=0, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Play", width=8, font=("Arial", 9), fg="white", bg="black", command=self.play_song).grid(row=0, column=1, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Next", width=8, font=("Arial", 9), fg="white", bg="black", command=self.play_next_song).grid(row=0, column=2, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Pause", width=8, font=("Arial", 9), fg="white", bg="black", command=self.pause_song).grid(row=0, column=3, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Resume", width=8, font=("Arial", 9), fg="white", bg="black", command=self.resume_song).grid(row=0, column=4, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Stop", width=8, font=("Arial", 9), fg="white", bg="black", command=self.stop_song).grid(row=0, column=5, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Clear", width=8, font=("Arial", 9), fg="white", bg="black", command=self.clear_playlist).grid(row=1, column=4, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Open", width=8, font=("Arial", 9), fg="white", bg="black", command=self.open_files).grid(row=1, column=5, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Save PL", width=8, font=("Arial", 9), fg="white", bg="black", command=self.save_playlist).grid(row=1, column=0, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Load PL", width=8, font=("Arial", 9), fg="white", bg="black", command=self.load_playlist).grid(row=1, column=1, padx=5, pady=5)
 
-        volume_label = tk.Label(self.control_frame, text="Volume", font=("Arial", 10), fg="white", bg="black")
-        volume_label.grid(row=1, column=2, padx=5, pady=5)
-        self.volume_slider = tk.Scale(self.control_frame, from_=0, to=100, orient=tk.HORIZONTAL,command=self.volume_control, bg="black", fg="white", troughcolor="gray", highlightthickness=0)
-        self.volume_slider.set(70)
-        self.volume_slider.grid(row=1, column=3, padx=5, pady=5)
+        self.volume_slider = tk.Scale(self.control_frame, from_=0, to=100, orient=tk.HORIZONTAL,command=self.volume_control, bg="black", fg="white", troughcolor="gray", highlightthickness=0, width=8)
+        self.volume_slider.set(80)
+        self.volume_slider.grid(row=1, column=2, columnspan=2)
         log_debug("Widgets created")
 
     def bind_shortcuts(self):
         log_debug("Bind keyboard shortcuts")
         self.root.bind("<space>", lambda e: self.toggle_play_pause())
         self.root.bind("<n>", lambda e: self.play_next_song())
-        self.root.bind("<b>", lambda e: self.play_previous_song())
-        self.root.bind("<g>", lambda e: self.pause_song())
-        self.root.bind("<h>", lambda e: self.resume_song())
+        self.root.bind("<p>", lambda e: self.play_previous_song())
+        self.root.bind("<o>", lambda e: self.open_files())
+        self.root.bind("<s>", lambda e: self.save_playlist())
+        self.root.bind("<l>", lambda e: self.load_playlist())
         log_debug("Shortcuts bound")
 
     def volume_control(self, volume):
@@ -302,8 +301,8 @@ class MusicPlayer:
 def main():
     log_debug("Starting PlayMe")
     try:
-        os.chdir(r"/media/coder/AV/Music")
-        log_debug("Changed directory to /media/coder/AV/Music")
+        os.chdir(r"~/Music")
+        log_debug("Changed directory to ~/Music")
     except Exception as e:
         log_error(f"Could not change directory: {e}")
         log_debug(f"Could not change directory: {e}")
@@ -318,3 +317,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
