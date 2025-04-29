@@ -1,9 +1,7 @@
-# PlayMe v1.4 20250428.08:40
-import os
-import sys
+# PlayMe v1.4.1 20250429.05:16 | Added cli option --stream-url=, cli file support, updated META info display 
+import os, sys, vlc
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
-from tkinter import ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from pygame import mixer
 from mutagen.mp3 import MP3
 import logger_playme
@@ -16,21 +14,23 @@ class MusicPlayer:
             icon = tk.PhotoImage(file="~/bin/Python/PlayMe/play-me_icon.png")
             self.root.iconphoto(False, icon)
         except Exception as e:
-            log_error(f"Failed to load icon: {e}")
+            log_error(f"Failed to load: {e}")
         log_debug("Starting PlayMe")
         self.root.title("PlayMe")
         self.root.geometry("610x380")
         self.root.resizable(0, 0)
         mixer.init()
-        mixer.music.set_volume(0.7)
+        mixer.music.set_volume(0.8)
         log_debug("Mixer up")
         self.auto_next = False
         self.playlist_data = []
         self.song_duration = 0
+        self.vlc_instance = vlc.Instance()
+        self.stream_player = None
         self.create_widgets()
         self.bind_shortcuts()
         self.root.after(1000, self.periodic_update)
-        log_debug("Update per second scheduled")
+        log_debug("Update per sec set")
 
     def create_widgets(self):
         log_debug("Create widgets")
@@ -60,14 +60,14 @@ class MusicPlayer:
         tk.Button(self.control_frame, text="Pause", width=8, font=("Arial", 9), fg="white", bg="black", command=self.pause_song).grid(row=0, column=3, padx=5, pady=5)
         tk.Button(self.control_frame, text="Resume", width=8, font=("Arial", 9), fg="white", bg="black", command=self.resume_song).grid(row=0, column=4, padx=5, pady=5)
         tk.Button(self.control_frame, text="Stop", width=8, font=("Arial", 9), fg="white", bg="black", command=self.stop_song).grid(row=0, column=5, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Clear", width=8, font=("Arial", 9), fg="white", bg="black", command=self.clear_playlist).grid(row=1, column=4, padx=5, pady=5)
-        tk.Button(self.control_frame, text="Open", width=8, font=("Arial", 9), fg="white", bg="black", command=self.open_files).grid(row=1, column=5, padx=5, pady=5)
         tk.Button(self.control_frame, text="Save PL", width=8, font=("Arial", 9), fg="white", bg="black", command=self.save_playlist).grid(row=1, column=0, padx=5, pady=5)
         tk.Button(self.control_frame, text="Load PL", width=8, font=("Arial", 9), fg="white", bg="black", command=self.load_playlist).grid(row=1, column=1, padx=5, pady=5)
-
-        self.volume_slider = tk.Scale(self.control_frame, from_=0, to=100, orient=tk.HORIZONTAL,command=self.volume_control, bg="black", fg="white", troughcolor="gray", highlightthickness=0, width=8)
+        tk.Button(self.control_frame, text="Clear", width=8, font=("Arial", 9), fg="white", bg="black", command=self.clear_playlist).grid(row=1, column=2, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Open", width=8, font=("Arial", 9), fg="white", bg="black", command=self.open_files).grid(row=1, column=3, padx=5, pady=5)
+        tk.Button(self.control_frame, text="Stream", width=8, font=("Arial", 9), fg="white", bg="black", command=self.play_stream).grid(row=1, column=4, padx=5, pady=5)
+        self.volume_slider = tk.Scale(self.control_frame, from_=0, to=100, orient=tk.HORIZONTAL, command=self.volume_control, bg="black", fg="white", troughcolor="gray", highlightthickness=0, width=8)
         self.volume_slider.set(80)
-        self.volume_slider.grid(row=1, column=2, columnspan=2)
+        self.volume_slider.grid(row=1, column=5)
         log_debug("Widgets created")
 
     def bind_shortcuts(self):
@@ -78,25 +78,28 @@ class MusicPlayer:
         self.root.bind("<o>", lambda e: self.open_files())
         self.root.bind("<s>", lambda e: self.save_playlist())
         self.root.bind("<l>", lambda e: self.load_playlist())
+        self.root.bind("<r>", lambda e: self.play_stream())
         log_debug("Shortcuts bound")
 
     def volume_control(self, volume):
         vol = float(volume) / 100.0
         mixer.music.set_volume(vol)
-        log_debug(f"Volume set to {vol:.2f}")
+        if self.stream_player:
+            self.stream_player.audio_set_volume(int(vol * 100))
+        log_debug(f"Volume at {vol:.2f}")
 
     def update_metadata(self, file_path):
-        log_debug(f"Updating metadata for file: {file_path}")
+        log_debug(f"Updating metadata: {file_path}")
         try:
             audio = MP3(file_path)
             title = audio.tags.get('TIT2', "Ruh Roh") if audio.tags else "Ruh Roh"
             artist = audio.tags.get('TPE1', "No Info Shaggy") if audio.tags else "No Info Shaggy"
-            metadata_text = f"[ ON AIR ]     {title} ~ {artist}"
+            metadata_text = f"[ ON AIR ] {title} ~ {artist}"
             self.song_duration = audio.info.length
-            log_debug(f"Metadata read: Title='{title}', Artist='{artist}', Duration={self.song_duration:.2f} sec")
+            log_debug(f"Metadata: Title='{title}', Artist='{artist}', Duration={self.song_duration:.2f} sec")
         except Exception as e:
             log_error(f"Error reading metadata: {e}")
-            metadata_text = "[ ON AIR ] Ruh-Roh! No Meta Scooby Snacks Here"
+            metadata_text = "[ ON AIR ] Ruh-Roh! No Meta Scooby Snacks"
             self.song_duration = 0
         self.metadata_label.config(text=metadata_text)
         self.progress_bar.config(maximum=self.song_duration if self.song_duration else 100)
@@ -114,97 +117,136 @@ class MusicPlayer:
 
     def play_song(self):
         log_debug("Attempting to play selected song")
+        if self.stream_player:
+            self.stop_stream()
         try:
             index = self.display_playlist.curselection()[0]
             log_debug(f"Selected song index: {index}")
         except IndexError:
-            messagebox.showinfo("Info", "Please select a song to play.")
-            log_debug("No song selected to play")
+            messagebox.showinfo("Info", "Please select a song.")
+            log_debug("No song selected")
             return
         file_path = self.playlist_data[index]
         try:
             mixer.music.load(file_path)
-            log_debug(f"Loaded song file: {file_path}")
+            log_debug(f"Loaded: {file_path}")
             mixer.music.play()
             log_debug("Playback started")
             self.update_metadata(file_path)
             self.auto_next = True
             log_debug("Auto next enabled")
         except Exception as e:
-            log_error(f"Error playing song: {e}")
-            log_debug(f"Error playing song: {e}")
-            self.metadata_label.config(text="Error playing song.")
+            log_error(f"Error playing: {e}")
+            log_debug(f"Error playing: {e}")
+            self.metadata_label.config(text="Error playing.")
+
+    def play_stream(self):
+        log_debug("Attempting to stream URL")
+        self.stop_song()
+        if self.stream_player:
+            self.stop_stream()
+        url = simpledialog.askstring("Stream URL", "Enter stream URL:")
+        if not url:
+            log_debug("No URL provided")
+            return
+        try:
+            media = self.vlc_instance.media_new(url)
+            self.stream_player = self.vlc_instance.media_player_new()
+            self.stream_player.set_media(media)
+            media.add_option("network-caching=300")  # caching in ms
+            self.stream_player.play()
+            self.metadata_label.config(text=f"[ STREAMING ] ...{url[-45:]}")
+            log_debug(f"Streaming: {url}")
+        except Exception as e:
+            log_error(f"Error streaming: {e}")
+            messagebox.showerror("Error", "Could not stream URL.")
+            self.stream_player = None
+
+    def stop_stream(self):
+        if self.stream_player:
+            log_debug("Stopping stream")
+            self.stream_player.stop()
+            self.stream_player = None
+            self.metadata_label.config(text="")
+            self.progress_var.set(0)
 
     def play_next_song(self):
-        log_debug("Attempting to play next song")
+        log_debug("Attempting to play next")
         if not self.auto_next:
             log_debug("Auto next disabled; skipping next song")
             return
         try:
             index = self.display_playlist.curselection()[0]
-            log_debug(f"Current song index for next song: {index}")
+            log_debug(f"Current index next song: {index}")
         except IndexError:
             index = 0
-            log_debug("No current selection; defaulting to index 0 for next song")
+            log_debug("No selection; defaulting to index 0")
         next_index = index + 1
         if next_index < len(self.playlist_data):
             self.display_playlist.selection_clear(0, tk.END)
             self.display_playlist.selection_set(next_index)
             self.display_playlist.activate(next_index)
-            log_debug(f"Switching to next song at index {next_index}")
+            log_debug(f"Switching to {next_index}")
             self.play_song()
         else:
             self.auto_next = False
-            log_debug("Reached end of playlist; disabling auto next")
+            log_debug("Reached end playlist; disabling auto next")
 
     def play_previous_song(self):
-        log_debug("Attempting to play previous song")
+        log_debug("Attempting to play previous")
         try:
             index = self.display_playlist.curselection()[0]
-            log_debug(f"Current song index for previous song: {index}")
+            log_debug(f"Current index previous: {index}")
         except IndexError:
             index = 0
-            log_debug("No current selection; defaulting to index 0 for previous song")
+            log_debug("No current selection; defaulting to index 0")
         prev_index = index - 1
         if prev_index >= 0:
             self.display_playlist.selection_clear(0, tk.END)
             self.display_playlist.selection_set(prev_index)
             self.display_playlist.activate(prev_index)
-            log_debug(f"Switching to previous song at index {prev_index}")
+            log_debug(f"Switching to previous index {prev_index}")
             self.play_song()
         else:
             self.auto_next = False
             log_debug("No previous song available; disabling auto next")
 
     def stop_song(self):
-        log_debug("Stopping song")
+        log_debug("Stopping playback")
         mixer.music.stop()
         self.metadata_label.config(text='')
         self.auto_next = False
         self.progress_var.set(0)
+        self.stop_stream()
 
     def pause_song(self):
-        log_debug("Pausing song")
-        mixer.music.pause()
+        log_debug("Pausing")
+        if mixer.music.get_busy():
+            mixer.music.pause()
+        if self.stream_player:
+            self.stream_player.set_pause(1)
         self.auto_next = False
 
     def resume_song(self):
-        log_debug("Resuming song")
-        mixer.music.unpause()
+        log_debug("Resuming")
+        if not mixer.music.get_busy() and self.display_playlist.curselection():
+            mixer.music.unpause()
+        if self.stream_player:
+            self.stream_player.set_pause(0)
         self.auto_next = True
 
     def toggle_play_pause(self):
-        log_debug("Toggle play/pause triggered")
-        if mixer.music.get_busy():
-            log_debug("Music currently playing; pausing")
+        log_debug("Toggle play/pause")
+        if mixer.music.get_busy() or (self.stream_player and self.stream_player.is_playing()):
+            log_debug("Audio currently playing; pausing")
             self.pause_song()
         else:
             try:
                 index = self.display_playlist.curselection()[0]
-                log_debug(f"Resuming playback for selected song at index {index}")
+                log_debug(f"Resuming playback at index {index}")
             except IndexError:
                 if self.playlist_data:
-                    log_debug("No song selected; defaulting to first song to play")
+                    log_debug("No song selected; defaulting to first")
                     self.display_playlist.selection_set(0)
                     self.play_song()
                     return
@@ -214,16 +256,13 @@ class MusicPlayer:
             self.resume_song()
 
     def open_files(self):
-        log_debug("Opening file dialog to select songs")
-        files = filedialog.askopenfilenames(
-            title="Where's the Scooby Snacks?",
-            filetypes=(("MP3 Files", "*.mp3"), ("Ogg Files", "*.ogg"), ("Flac Files", "*.flac"), ("All Files", "*.*"))
-        )
+        log_debug("Opening file dialog to select")
+        files = filedialog.askopenfilenames(title="Where's the Scooby Snacks?",filetypes=(("MP3 Files", "*.mp3"), ("Ogg Files", "*.ogg"), ("Flac Files", "*.flac"), ("All Files", "*.*")))
         log_debug(f"Files selected: {files}")
         self.add_file_paths(files)
 
     def add_file_paths(self, file_paths):
-        log_debug("Adding selected file paths to playlist")
+        log_debug("Adding selected files to playlist")
         count = 0
         for file in file_paths:
             if os.path.exists(file):
@@ -232,7 +271,7 @@ class MusicPlayer:
                 count += 1
                 log_debug(f"Added: {file}")
             else:
-                log_debug(f"File does not exist and was skipped: {file}")
+                log_debug(f"File does not exist, skipped: {file}")
         log_debug(f"Total files added: {count}")
 
     def clear_playlist(self):
@@ -249,29 +288,21 @@ class MusicPlayer:
             messagebox.showinfo("Info", "No songs to save in playlist.")
             log_debug("Save playlist aborted: no songs")
             return
-        file_path = filedialog.asksaveasfilename(
-            title="Save Playlist",
-            defaultextension=".txt",
-            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
-        )
+        file_path = filedialog.asksaveasfilename(title="Save Playlist",defaultextension=".txt",filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
         if file_path:
             try:
                 with open(file_path, "w") as f:
                     for song in self.playlist_data:
                         f.write(song + "\n")
-                log_debug(f"Playlist saved successfully to {file_path}")
+                log_debug(f"Playlist saved {file_path}")
             except Exception as e:
-                log_error(f"Error saving playlist: {e}")
-                log_debug(f"Error saving playlist: {e}")
-                messagebox.showerror("Error", "Could not save playlist.")
+                log_error(f"Error saving: {e}")
+                log_debug(f"Error saving: {e}")
+                messagebox.showerror("Error", "Could not save pl.")
 
     def load_playlist(self):
-        log_debug("Loading playlist from file")
-        file_path = filedialog.askopenfilename(
-            title="Load Playlist",
-            defaultextension=".txt",
-            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
-        )
+        log_debug("Loading playlist")
+        file_path = filedialog.askopenfilename(title="Load Playlist",defaultextension=".txt",filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
         if file_path:
             try:
                 with open(file_path, "r") as f:
@@ -284,11 +315,11 @@ class MusicPlayer:
                         self.display_playlist.insert(tk.END, os.path.basename(song_path))
                         log_debug(f"Loaded song: {song_path}")
                     else:
-                        log_debug(f"File does not exist while loading playlist: {song_path}")
-                log_debug("Playlist loaded successfully")
+                        log_debug(f"File does not exist: {song_path}")
+                log_debug("Playlist loaded")
             except Exception as e:
-                log_error(f"Error loading playlist: {e}")
-                log_debug(f"Error loading playlist: {e}")
+                log_error(f"Error loading: {e}")
+                log_debug(f"Error loading: {e}")
                 messagebox.showerror("Error", "Could not load playlist.")
 
     def periodic_update(self):
@@ -297,24 +328,50 @@ class MusicPlayer:
             log_debug("No music playing and auto_next enabled; attempting to play next song")
             self.play_next_song()
         self.root.after(1000, self.periodic_update)
+    
+    def play_stream_from_url(self, url):
+        log_debug("Attempting to stream URL")
+        self.stop_song()
+        if self.stream_player:
+            self.stop_stream()
+        try:
+            media = self.vlc_instance.media_new(url)
+            self.stream_player = self.vlc_instance.media_player_new()
+            self.stream_player.set_media(media)
+            media.add_option("network-caching=300")  # caching in ms
+            self.stream_player.play()
+            self.metadata_label.config(text=f"[ STREAMING ] {url}")
+            log_debug(f"Streaming started from URL: {url}")
+        except Exception as e:
+            log_error(f"Error streaming URL: {e}")
+            messagebox.showerror("Error", "Could not stream audio from the provided URL.")
+            self.stream_player = None
 
 def main():
     log_debug("Starting PlayMe")
+    stream_url = None
     try:
         os.chdir(r"~/Music")
-        log_debug("Changed directory to ~/Music")
+        log_debug("cd to ~/Music")
     except Exception as e:
-        log_error(f"Could not change directory: {e}")
-        log_debug(f"Could not change directory: {e}")
+        log_error(f"Could not change: {e}")
+        log_debug(f"Could not change: {e}")
+    if len(sys.argv) > 1:
+        for arg in sys.argv[1:]:
+            if arg.startswith("--stream-url="):
+                stream_url = arg.split("=")[1]
+                log_debug(f"Stream URL: {stream_url}")
     root = tk.Tk()
     app = MusicPlayer(root)
     if len(sys.argv) > 1:
-        file_args = sys.argv[1:]
-        log_debug(f"Command-line file arguments: {file_args}")
+        file_args = [arg for arg in sys.argv[1:] if not arg.startswith("--stream-url=")]
+        log_debug(f"Command-line arguments: {file_args}")
         app.add_file_paths(file_args)
-    log_debug("Entering main event loop")
+    if stream_url:
+        app.play_stream_from_url(stream_url)
+
+    log_debug("Starting mainloop")
     root.mainloop()
 
 if __name__ == "__main__":
     main()
-
