@@ -340,7 +340,7 @@ class MusicPlayer:
             self.stream_player.set_media(media)
             media.add_option("network-caching=300")  # caching in ms
             self.stream_player.play()
-            self.metadata_label.config(text=f"[ STREAMING ] {url}")
+            self.metadata_label.config(text=f"[ STREAMING ] ...{url[-45:]}")
             log_debug(f"Streaming started from URL: {url}")
         except Exception as e:
             log_error(f"Error streaming URL: {e}")
