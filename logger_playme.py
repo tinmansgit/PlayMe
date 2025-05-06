@@ -1,7 +1,9 @@
 import logging
+from datetime import datetime
 
-error_log_file = '/bin/Python/PlayMe/log_playme_error.log'
-debug_log_file = '/bin/Python/PlayMe/log_playme_debug.log'
+current_date = datetime.now().strftime('%Y-%m-%d')
+error_log_file = f'~/bin/Python/PlayMe/log_error_playme_{current_date}.log'
+debug_log_file = f'~/bin/Python/PlayMe/log_debug_playme_{current_date}.log'
 
 logger = logging.getLogger('app_logger')
 logger.setLevel(logging.DEBUG)
